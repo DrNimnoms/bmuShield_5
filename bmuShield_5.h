@@ -153,7 +153,7 @@ static const int lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,4175,41
   	void set_bme_max(float maxVol);
   	void set_flags();
 	void reset_flags();
-	void set_flag_over(uint8_t flagNum);
+	void set_flag_over(uint16_t priority2Flag);
   	uint8_t set_extDO(uint8_t do_num, bool ext_do_on);
 
   	void data_bmu(uint8_t data_out[22]);
@@ -203,6 +203,7 @@ static const int lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,4175,41
     float myInOutCurLimit;          // current in or out limit durring stop and balance
     float myVolMismatch;   //voltage mismatch limit between calculated and measured total voltage of battery 
     float myTimeOutLimit;	// the hours in charge or balance before timing out
+    float myVolLowBalAlarm;   // the myVoltage at whitch the system will not go in to balancing mode
     float myBalRecLimit;      // minimum voltage limit for recommending balancing
     float myBalRecVol;      // voltage difference at which balancing will be recommended
     float myVolTolerance;   // the max voltage difference that the virtual cells will have at the end of balancing

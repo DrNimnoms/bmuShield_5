@@ -80,6 +80,7 @@ bmuShield::bmuShield()
     myTimeOutLimit = 8.0;	// the hours in charge or balance before timing out
     myBalRecVol = 0.050;       // voltage difference at which balancing will be recommended
     myBalRecLimit = 3.9;      // minimum voltage limit for recommending balancing
+    myVolLowBalAlarm  = 3.7;   // the myVoltage at which the system will not go in to balancing mode
     myVolTolerance = 0.003;   // the max voltage difference that the virtual cells will have at the end of balancing
     myDoneCur = 4.45;         //the current at which the charging is called done
 
@@ -155,11 +156,13 @@ void bmuShield::set_flags(){ //Serial.println(myCurrent);
 	if(myMode == CHARGE && (myCurrent > myHighChargeCur || myCurrent < myLowChargeCur)) myFlag |= (1<<8);  // set Charge current out of bound
  	if((!myRelay1fb || !myRelay2fb) && abs(myCurrent) > myInOutCurLimit) myFlag |= (1<<9);  // set off or balance current out of limit 
  	if((myMode==CHARGE || myMode==BALANCE) && myModeTime.hours >= myTimeOutLimit) myFlag |= (1<<10); // set time out flag
- 	if(myMode!=BALANCE && (myBmeMax-myBmeMin) > myBalRecVol && myBmeMin > myBalRecLimit) myFlag |= (1<<11); // set balance recommended flag
- 	if(myMode==BALANCE && (myBmeMax-myBmeMin) < myVolTolerance) myFlag |= (1<<12); // set balancing Done flag
+ 	
+    if((myMode == SYS_OFF || myMode == BALANCE) && myBmeMin < myVolLowBalAlarm) myFlag |= (1<<11); // set low balance myVoltage alarm 
+ 	if(myMode!=BALANCE && (myBmeMax-myBmeMin) > myBalRecVol && myBmeMin > myBalRecLimit) myFlag |= (1<<12); // set balance recommended flag
+ 	if(myMode==BALANCE && (myBmeMax-myBmeMin) < myVolTolerance) myFlag |= (1<<13); // set balancing Done flag
  	
  	// set charging Done flag if myCurrent is lower than myDoneCur for two minutes
- 	if(myMode==CHARGE && myCurrent < myDoneCur && myChargeDoneTimer.check() && myBmeMax>= myChg2Vol) myFlag |= (1<<13); 
+ 	if(myMode==CHARGE && myCurrent < myDoneCur && myChargeDoneTimer.check() && myBmeMax>= myChg2Vol) myFlag |= (1<<14); 
  	else myChargeDoneTimer.reset(); // reset charge time
 }
 
@@ -204,10 +207,10 @@ void bmuShield::set_chg2vol(float chg2vol){
 /***********************************************//**
  \brief set bmu override flags 
 *************************************************/
-void bmuShield::set_flag_over(uint8_t flagNum){
-	if(flagNum>=0 && flagNum<16){
-		myFlagOverride |= (1<<flagNum);
-	}
+void bmuShield::set_flag_over(uint16_t priority2Flag){
+	
+	myFlagOverride |= (myFlag & priority2Flag);
+	
 }
 
 /***********************************************//**
