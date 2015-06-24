@@ -1,0 +1,57 @@
+#######################################
+# Syntax Coloring Map For Test
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+bmuShield	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+bmuShield_initialize	KEYWORD2
+set_dt	KEYWORD2
+
+meas_bmuShield	KEYWORD2
+act_bmuShield	KEYWORD2
+
+set_mode	KEYWORD2
+set_chg2vol	KEYWORD2
+set_bme_sum	KEYWORD2
+set_bme_min	KEYWORD2
+set_bme_max	KEYWORD2
+set_flags	KEYWORD2
+reset_flags	KEYWORD2
+set_flag_over KEYWORD2
+set_extDO	KEYWORD2
+
+data_bmu	KEYWORD2
+data_relay	KEYWORD2
+
+get_flag KEYWORD2
+get_mode KEYWORD2
+get_voltage	KEYWORD2
+get_pressure	KEYWORD2
+get_presRate	KEYWORD2
+get_ext_pressure	KEYWORD2
+get_ext_presRate	KEYWORD2
+get_current	KEYWORD2
+get_front_leak	KEYWORD2
+get_back_leak	KEYWORD2
+get_relay1_state	KEYWORD2
+get_relay2_state	KEYWORD2
+
+#######################################
+# Instances (KEYWORD2)
+#######################################
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+SYS_OFF	LITERAL1
+SYS_ON	LITERAL1
+CHARGE	LITERAL1 
+BALANCE	LITERAL1
