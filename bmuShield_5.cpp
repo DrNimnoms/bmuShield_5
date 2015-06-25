@@ -92,6 +92,30 @@ bmuShield::bmuShield()
 }
 
 /*!******************************************************************************************************************
+  \brief set the limits for the bmu
+
+ ******************************************************************************************************************/
+void bmuShield::set_limits(float limits[14])
+{
+  	//?? note put in limit checks for saftey
+	// set BMU FLAG LIMITS
+    myPresRateHigh = limits[0];    //High pressure rate limit
+    myPresHighLimit = limits[1];    //High pressure limit
+    myPresLowLimit = limits[2];     //Low Pressure limit
+    myInCurLimit = limits[3];      //current in limit during ON mode
+    myHighChargeCur = limits[4];     //high current in limit in CHARGE mode
+    myLowChargeCur = limits[5];      //current out limit in CHARGE mode
+    myInOutCurLimit = limits[6];     // current in or out limit during OFF or BALANCE mode
+    myVolBmuMismatch = limits[7];       //voltage mismatch limit between calculated and measured total voltage by BMU
+    myTimeOutLimit = limits[8];	// the hours in charge or balance before timing out
+    myVolLowBalAlarm  = limits[9];   // the myVoltage at which the system will not go in to balancing mode
+    myBalRecLimit = limits[10];      // minimum voltage limit for recommending balancing
+    myBalRecVol = limits[11];       // voltage difference at which balancing will be recommended
+    myVolTolerance = limits[12];   // the max voltage difference that the virtual cells will have at the end of balancing
+    myDoneCur = limits[13];         //the current at which the charging is called done
+}
+
+/*!******************************************************************************************************************
  \brief Measures and calculates data on the BMU shield
  ******************************************************************************************************************/
  void bmuShield::meas_bmuShield(void){
@@ -150,7 +174,7 @@ void bmuShield::set_flags(){ //Serial.println(myCurrent);
 	if(!myRelayOn && (myRelay1fb || myRelay2fb)) myFlag |= (1<<3); 
 	if(max(myPresRate,myPresExtRate) > myPresRateHigh) myFlag |= (1<<4); // set pressure rate flag
 	if(max(myPressure,myPressureExt) > myPresHighLimit || min(myPressure,myPressureExt) < myPresLowLimit) myFlag |= (1<<5); // set pressure out of bound flag
-	if(abs(myBmeSum - myVoltage) > myVolMismatch) myFlag |= (1<<6); // set overall voltage mismatch
+	if(abs(myBmeSum - myVoltage) > myVolBmuMismatch) myFlag |= (1<<6); // set overall voltage mismatch
 	if(myMode == SYS_ON && myCurrent > myInCurLimit) myFlag |= (1<<7); // set On current out of bound
 	if(myMode == CHARGE && (myCurrent > myHighChargeCur || myCurrent < myLowChargeCur)) myFlag |= (1<<8);  // set Charge current out of bound
  	if((!myRelay1fb || !myRelay2fb) && abs(myCurrent) > myInOutCurLimit) myFlag |= (1<<9);  // set off or balance current out of limit 

@@ -142,6 +142,7 @@ static const int lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,4175,41
   	
   	bmuShield();
   	void bmuShield_initialize();
+  	void set_limits(float limits[14]);
   	uint8_t set_dt(float dt);
 
   	void meas_bmuShield();
@@ -201,7 +202,7 @@ static const int lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,4175,41
     float myHighChargeCur;     //high current in limit during Charging
     float myLowChargeCur;      //current out limit during Charging
     float myInOutCurLimit;          // current in or out limit durring stop and balance
-    float myVolMismatch;   //voltage mismatch limit between calculated and measured total voltage of battery 
+    float myVolBmuMismatch;   //voltage mismatch limit between calculated and measured total voltage of battery 
     float myTimeOutLimit;	// the hours in charge or balance before timing out
     float myVolLowBalAlarm;   // the myVoltage at whitch the system will not go in to balancing mode
     float myBalRecLimit;      // minimum voltage limit for recommending balancing
