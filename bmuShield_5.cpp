@@ -67,23 +67,22 @@ bmuShield::bmuShield()
 	myRelay1fb =0;   // contactor 1 feedback
 	myRelay2fb =0;   // contactor 2 feedback
 
-	// FLAG LIMITS
-	myPresHighLimit = 5.0;    //High pressure limit
-    myPresLowLimit = 0.5;     //Low Pressure limit
+	// BMU FLAG LIMITS
     myPresRateHigh = 0.06;    //High pressure rate limit
-    
-    myInCurLimit = 2.0;      //current in limit during Drive
-    myHighChargeCur = 92.0;     //high current in limit during Charging
-    myLowChargeCur = -2.0;      //current out limit during Charging
-    myInOutCurLimit = 1.0;     // current in or out limit during stop and balance
-    myVolMismatch = 3.0;       //voltage mismatch limit between calculated and measured total voltage by BMU
+    myPresHighLimit = 5.0;    //High pressure limit
+    myPresLowLimit = 0.5;     //Low Pressure limit
+    myInCurLimit = 2.0;      //current in limit during ON mode
+    myHighChargeCur = 92.0;     //high current in limit in CHARGE mode
+    myLowChargeCur = -2.0;      //current out limit in CHARGE mode
+    myInOutCurLimit = 1.0;     // current in or out limit during OFF or BALANCE mode
+    myVolBmuMismatch = 3.0;       //voltage mismatch limit between calculated and measured total voltage by BMU
     myTimeOutLimit = 8.0;	// the hours in charge or balance before timing out
-    myBalRecVol = 0.050;       // voltage difference at which balancing will be recommended
-    myBalRecLimit = 3.9;      // minimum voltage limit for recommending balancing
     myVolLowBalAlarm  = 3.7;   // the myVoltage at which the system will not go in to balancing mode
+    myBalRecLimit = 3.9;      // minimum voltage limit for recommending balancing
+    myBalRecVol = 0.050;       // voltage difference at which balancing will be recommended
     myVolTolerance = 0.003;   // the max voltage difference that the virtual cells will have at the end of balancing
     myDoneCur = 4.45;         //the current at which the charging is called done
-
+    
   // BMU actuators Variables
 	myRelayDelay = false; // a bool to saprate the relays turning on 
 	myRelayOn =false;   // relays 1 nd 2
