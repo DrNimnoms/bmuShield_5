@@ -138,6 +138,8 @@ void bmuShield::set_limits(float limits[14])
   if(!myRelay1fb || !myRelay2fb) myCur0 = (1.0-ALPHA_CUR)*myCur0 + ALPHA_CUR *myCurrent;
   myCurrent = myCurrent - myCur0;
 
+  batStateCal();
+
  }
 
 /*!******************************************************************************************************************
@@ -351,11 +353,40 @@ uint16_t bmuShield::get_flag(){
 /*!******************************************************************************************************************
  \brief gets the bmu mode
 
- @return uint16_t voltage,  the string voltage measurement 
+ @return mode myMode,  the string voltage measurement 
  ******************************************************************************************************************/
 Mode bmuShield::get_mode(){ 
   return myMode;
 }
+
+/*!******************************************************************************************************************
+ \brief gets the bmu state conditions
+
+ @out float battery states,  the string voltage measurement 
+ ******************************************************************************************************************/
+void bmuShield::get_icInfo(uint16_t countInfo[2], float ampHinfo[4]){ 
+  countInfo[0] = myCycleCount;
+  countInfo[1] = myChargeCounter;
+  ampHinfo[0] = myCap;
+  ampHinfo[1] = myTotalDiscahrge;
+  ampHinfo[2] = myAvgDod;
+  ampHinfo[3] = myDod;
+}
+
+/*!******************************************************************************************************************
+ \brief set the bmu state conditions
+
+ @out float battery states,  the string voltage measurement 
+ ******************************************************************************************************************/
+void bmuShield::set_icInfo(uint16_t countInfo[2], float ampHinfo[4]){ 
+  myCycleCount = countInfo[0] ;
+  myChargeCounter = countInfo[1];
+  myCap = ampHinfo[0];
+  myTotalDiscahrge = ampHinfo[1];
+  myAvgDod = ampHinfo[2];
+  myDod = ampHinfo[3];
+}
+
 
 /*!******************************************************************************************************************
  \brief gets the string voltage on bmu
@@ -640,18 +671,19 @@ void bmuShield::batStateCal(){
  * calculates state of charge of the battery
  *----------------------------------------------------------------------------*/
 void bmuShield::initalizeSoc(){
-//  Serial.println(int(minVol*1000)); 
-  mySoc=findIntSoc(uint16_t(myBmeMin*1000))/10.0;
+
+  mySoc=findIntSoc((uint16_t)(myBmeMin*1000))/10.0;
   if(mySoc>100) mySoc=100;
   if(mySoc<0) mySoc=0; 
   myCap=mySoc*MAX_CAP*0.01;
+
 }
 /*------------------------------------------------------------------------------
  * int findIntSoc(int lVol)
  * Finds the SOC given inital voltage
  *----------------------------------------------------------------------------*/
 uint16_t bmuShield::findIntSoc(uint16_t lVol){
- uint16_t lo=-1,hi=1019, mid=0; 
+ uint16_t lo=0,hi=1046, mid=0; 
  while(hi-lo>1){
    mid=(lo+hi)/2;
    if(lookUpVoltage[mid] >= lVol) lo=mid;
