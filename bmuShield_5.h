@@ -122,12 +122,12 @@ static const uint16_t lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,41
   #define STRING_VOL_CONST 0.01244        //(45.3+1.87)/1.87*10Kohm/(6.34Kohm+10Kohm)*3.3V/4095
   #define PRESSURE_CONST 0.0019073     //1 kpa/5V/0.018*4.7ohm/3.2ohm*3.3V/4095*0.14503 gpsi/kpa
   #define EXT_PRESSURE_CONST 0.0047218  //15 PSI/16mA/160 ohm*3.3V/4095 d
-  #define PRESSURE_OFFSET 0.3223       //0.04/0.018 kpa * 0.14503 gpsi/kpa
+  #define PRESSURE_OFFSET 0.3223       //0.04/0.018 kpa * 0.14503 gpsi/kpa 
   #define EXT_PRESSURE_OFFSET 3.75      //4mA*160 ohm/3.3V*4096 d*presConstExt psi/d
   #define ALPHA_CUR 0.0012566        // low pass with a cutoff filter at 0.001 Hz rise time of ~160s
   #define CAP_CONST 0.0000555556    //0.2 sec==>.000055556 hours
 // BMU time  
-  #define ONESECOND 1000   // in milliseconds
+  #define RELAY_ON_DELAY 1500   // in milliseconds
   #define TWOMINUTES 120000  // in milliseconds
 
 // BMU states
@@ -249,7 +249,7 @@ static const uint16_t lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,41
 	float myBmeMin;
 
   // BMU actuators Variables
-	Metro myRrelayTimer = Metro(ONESECOND); // 1 sec delay time between the relays
+	Metro myRrelayTimer = Metro(RELAY_ON_DELAY); // 1.5 sec delay time between the relays
 	bool myRelayDelay; // a bool to saprate the relays turning on
 	bool myRelayOn;   // relays 1 nd 2
 	bool myExtDO1;   // external digatal output 1
@@ -257,6 +257,7 @@ static const uint16_t lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,41
 
   // varables used in getting BMU measurements 
 	float myDT;
+  float myDtInv;
 	//Biquad filter struct
 	  typedef struct{
 	    float gain;//filter gain

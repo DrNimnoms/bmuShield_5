@@ -125,11 +125,11 @@ void bmuShield::set_limits(float limits[14])
   myBwLeak=!digitalRead(backWPin);              //read back leak sensor
   myPresOld = myPressure;             // last pressure value
   myPressure=avgADC(presInPin,3)*PRESSURE_CONST-PRESSURE_OFFSET;  // read pressure from on board sensor
-  myPresRate=(myPressure-myPresOld)*myDT;          //calculate pressure rate
+  myPresRate=(myPressure-myPresOld)*myDtInv;          //calculate pressure rate
   myPresRate= biquad_filter(biPresrate,myPresRate);      // get filtered pressure rate
   myPresExtOld = myPressureExt;                     // last pressure value
   myPressureExt=avgADC(presInExtPin,3)*EXT_PRESSURE_CONST-EXT_PRESSURE_OFFSET;   //get external pressure
-  myPresExtRate=(myPressureExt-myPresExtOld)*myDT;       //calculate externalpressure rate
+  myPresExtRate=(myPressureExt-myPresExtOld)*myDtInv;       //calculate externalpressure rate
   myPresExtRate= biquad_filter(biPresrateExt, myPresExtRate); // get filtered external pressure rate
   float curOffset= avgADC(cur0InPin,3);             //read current offset from LEM sensor
   myRelay1fb=!digitalRead(relay1fbPin);     // read feedback from relay 1
@@ -137,6 +137,9 @@ void bmuShield::set_limits(float limits[14])
   myCurrent=(avgADC(curInPin,3)-curOffset)*CUR_CONST;     //read current sensor
   if(!myRelay1fb || !myRelay2fb) myCur0 = (1.0-ALPHA_CUR)*myCur0 + ALPHA_CUR *myCurrent;
   myCurrent = myCurrent - myCur0;
+
+  // Serial.print(myPresRate,4);
+  // Serial.print(", ");
 
   batStateCal();
 
@@ -512,6 +515,7 @@ void bmuShield::bmuShield_initialize(){
     myPresExtOld=avgADC(presInExtPin,3)*EXT_PRESSURE_CONST-EXT_PRESSURE_OFFSET;   //get external pressure
   
   	myDT=0.2;
+    myDtInv = 5;
   	
     // [b, a] = butter(2,.16*2/5) in Matlab
 	// second order butterworthcutoff freq at 0.16 normalized nyquist freq, sampling 5hz
@@ -540,6 +544,7 @@ void bmuShield::bmuShield_initialize(){
 uint8_t bmuShield::set_dt(float dt){
 	if (dt>0){
 		myDT=dt;
+    myDtInv=1.0/dt;
 		return 0;
 	}
 	else return -1;
@@ -580,15 +585,12 @@ uint8_t bmuShield::set_dt(float dt){
  * turns both relays on with 1 sec delay between
  *----------------------------------------------------------------------------*/
 void bmuShield::set_relay_on(void){
-	if(!myRelay1fb && !myRelay2fb){
-		myRrelayTimer.reset();
-		myRelayDelay = true;
-	} 
-	else if(myRelayDelay){
+
+	if(myRelayDelay){
 		if(myRrelayTimer.check()) myRelayDelay = false;
 	}
-  	digitalWrite(relay1Pin, HIGH);
-  	if(!myRelayDelay) digitalWrite(relay2Pin, HIGH);
+	digitalWrite(relay1Pin, HIGH);
+	if(!myRelayDelay) digitalWrite(relay2Pin, HIGH);
 }
 
 /*------------------------------------------------------------------------------
@@ -598,6 +600,8 @@ void bmuShield::set_relay_on(void){
 void bmuShield::set_relay_off(void){
   digitalWrite(relay1Pin, LOW);
   digitalWrite(relay2Pin, LOW);
+  myRrelayTimer.reset();
+  myRelayDelay = true;
 }
 
  /*------------------------------------------------------------------------------
