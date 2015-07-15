@@ -60,7 +60,7 @@ bmuShield::bmuShield()
 	myPressureExt =0;       // external pressure sensor reading
 	myPresExtOld = 0;          // last external pressure value
 	myPresExtRate =0;       // filtered external pressure rate
-	myCur0 =0;           // offset value read from the LEM sensor
+	myCur0 =0.3;           // offset value read from the LEM sensor
 	myCurrent =0;           // value read from the LEM sensor
 	myFwLeak =0;          // front leak sensor
 	myBwLeak =0;          // back leak sensor
@@ -82,7 +82,8 @@ bmuShield::bmuShield()
     myBalRecVol = 0.050;       // voltage difference at which balancing will be recommended
     myVolTolerance = 0.003;   // the max voltage difference that the virtual cells will have at the end of balancing
     myDoneCur = 4.45;         //the current at which the charging is called done
-    
+    myChg2Vol=0;
+
   // BMU actuators Variables
 	myRelayDelay = false; // a bool to saprate the relays turning on 
 	myRelayOn =false;   // relays 1 nd 2
@@ -108,6 +109,7 @@ void bmuShield::set_limits(float limits[14])
     myInOutCurLimit = limits[6];     // current in or out limit during OFF or BALANCE mode
     myVolBmuMismatch = limits[7];       //voltage mismatch limit between calculated and measured total voltage by BMU
     myTimeOutLimit = limits[8];	// the hours in charge or balance before timing out
+    // Serial.println(myTimeOutLimit,3);
     myVolLowBalAlarm  = limits[9];   // the myVoltage at which the system will not go in to balancing mode
     myBalRecLimit = limits[10];      // minimum voltage limit for recommending balancing
     myBalRecVol = limits[11];       // voltage difference at which balancing will be recommended
@@ -134,11 +136,11 @@ void bmuShield::set_limits(float limits[14])
   float curOffset= avgADC(cur0InPin,3);             //read current offset from LEM sensor
   myRelay1fb=!digitalRead(relay1fbPin);     // read feedback from relay 1
   myRelay2fb=!digitalRead(relay2fbPin);    // read feedback from relay 2
-  myCurrent=(avgADC(curInPin,3)-curOffset)*CUR_CONST;     //read current sensor
+  myCurrent=-(avgADC(curInPin,3)-curOffset)*CUR_CONST;     //read current sensor
   if(!myRelay1fb || !myRelay2fb) myCur0 = (1.0-ALPHA_CUR)*myCur0 + ALPHA_CUR *myCurrent;
   myCurrent = myCurrent - myCur0;
 
-  // Serial.print(myPresRate,4);
+  // Serial.print(avgADC(tVolInPin,0));
   // Serial.print(", ");
 
   batStateCal();
@@ -169,28 +171,43 @@ void bmuShield::set_limits(float limits[14])
 void bmuShield::set_flags(){ //Serial.println(myCurrent);
 
 	// update mode time
-  	time_update();
+  time_update();
 
 	if(myFwLeak) myFlag |= 1;  // water leak in the front of the string
 	if(myBwLeak) myFlag |= (1<<1);  // water leak in the back of the string
 	// if delayed on time is off AND relays are suppose to be on AND either relay is off THEN contactor stuck open
 	if(!myRelayDelay && myRelayOn && (!myRelay1fb || !myRelay2fb)) myFlag |= (1<<2); 
+  // Serial.print(myRelayDelay);
+  // Serial.print(", ");
+  // Serial.print(myRelayOn);
+  // Serial.print(", ");
+  // Serial.println((!myRelay1fb || !myRelay2fb));
 	// if the relays are suppose to be off AND either relay is on THEN contactors stuck closed
 	if(!myRelayOn && (myRelay1fb || myRelay2fb)) myFlag |= (1<<3); 
 	if(max(myPresRate,myPresExtRate) > myPresRateHigh) myFlag |= (1<<4); // set pressure rate flag
 	if(max(myPressure,myPressureExt) > myPresHighLimit || min(myPressure,myPressureExt) < myPresLowLimit) myFlag |= (1<<5); // set pressure out of bound flag
-	if(abs(myBmeSum - myVoltage) > myVolBmuMismatch) myFlag |= (1<<6); // set overall voltage mismatch
+	// set overall voltage mismatch
+  if(abs(myBmeSum - myVoltage) > myVolBmuMismatch){
+    if(myBmuMismatchTimer.check()) myFlag |= (1<<6); 
+  }
+  else myBmuMismatchTimer.reset();
+  
 	if(myMode == SYS_ON && myCurrent > myInCurLimit) myFlag |= (1<<7); // set On current out of bound
 	if(myMode == CHARGE && (myCurrent > myHighChargeCur || myCurrent < myLowChargeCur)) myFlag |= (1<<8);  // set Charge current out of bound
  	if((!myRelay1fb || !myRelay2fb) && abs(myCurrent) > myInOutCurLimit) myFlag |= (1<<9);  // set off or balance current out of limit 
- 	if((myMode==CHARGE || myMode==BALANCE) && myModeTime.hours >= myTimeOutLimit) myFlag |= (1<<10); // set time out flag
+ 	if((myMode==CHARGE || myMode==BALANCE) && (myModeTime.hours + myModeTime.minutes/60.0) >= myTimeOutLimit) myFlag |= (1<<10); // set time out flag
  	
-    if((myMode == SYS_OFF || myMode == BALANCE) && myBmeMin < myVolLowBalAlarm) myFlag |= (1<<11); // set low balance myVoltage alarm 
- 	if(myMode!=BALANCE && (myBmeMax-myBmeMin) > myBalRecVol && myBmeMin > myBalRecLimit) myFlag |= (1<<12); // set balance recommended flag
- 	if(myMode==BALANCE && (myBmeMax-myBmeMin) < myVolTolerance) myFlag |= (1<<13); // set balancing Done flag
+  if((myMode == SYS_OFF || myMode == BALANCE) && myBmeMin < myVolLowBalAlarm) myFlag |= (1<<11); // set low balance voltage alarm //	
+  if(myMode!=BALANCE && (myBmeMax-myBmeMin) > myBalRecVol && myBmeMin > myBalRecLimit) myFlag |= (1<<12); // set balance recommended flag
+ 	if(myMode==BALANCE && (myBmeMax-myBmeMin) < myVolTolerance){
+    if(myBalDoneTimer.check()) myFlag |= (1<<13); // set balancing Done flag
+  }
+  else myBalDoneTimer.reset();
  	
  	// set charging Done flag if myCurrent is lower than myDoneCur for two minutes
- 	if(myMode==CHARGE && myCurrent < myDoneCur && myChargeDoneTimer.check() && myBmeMax>= myChg2Vol) myFlag |= (1<<14); 
+ 	if(myMode==CHARGE && myCurrent < myDoneCur && myBmeMax >= myChg2Vol-0.002){
+    if(myChargeDoneTimer.check()) myFlag |= (1<<14); 
+  }
  	else myChargeDoneTimer.reset(); // reset charge time
 }
 
@@ -304,6 +321,8 @@ void bmuShield::data_bmu(uint8_t data_out[22]){
 	int2byte.asInt=float2int(myVoltage);
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
 	idx += 2;
+  // float curTempo=myCurrent;
+  // if(abs(curTempo)<.15) curTempo=0;
 	int2byte.asInt=float2int(myCurrent+150);
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
 	idx += 2;
@@ -327,7 +346,7 @@ void bmuShield::data_bmu(uint8_t data_out[22]){
 @return uint8_t relay states,  the bmu relay states in byte form
  ******************************************************************************************************************/
 uint8_t bmuShield::data_relay(){ 
-	return (myExtDO2<<3)+(myExtDO1<<2)+(myRelay2fb<<1)+myRelay1fb;
+	return ((myExtDO2<<3)+(myExtDO1<<2)+(myRelay2fb<<1)+myRelay1fb) & 0x0F;
 }
 
 /*!******************************************************************************************************************
@@ -515,7 +534,8 @@ void bmuShield::bmuShield_initialize(){
     myPresExtOld=avgADC(presInExtPin,3)*EXT_PRESSURE_CONST-EXT_PRESSURE_OFFSET;   //get external pressure
   
   	myDT=0.2;
-    myDtInv = 5;
+    myDtInv = 1.0/myDT;
+    myDtHour = myDT/3600;
   	
     // [b, a] = butter(2,.16*2/5) in Matlab
 	// second order butterworthcutoff freq at 0.16 normalized nyquist freq, sampling 5hz
@@ -544,7 +564,8 @@ void bmuShield::bmuShield_initialize(){
 uint8_t bmuShield::set_dt(float dt){
 	if (dt>0){
 		myDT=dt;
-    myDtInv=1.0/dt;
+    myDtInv = 1.0/dt;
+    myDtHour = dt/3600;
 		return 0;
 	}
 	else return -1;
@@ -642,7 +663,7 @@ void bmuShield::batStateCal(){
   
 
   float tempoCap = 0;
-  if(abs(myCurrent)>.3) tempoCap = myCurrent*CAP_CONST;
+  if(abs(myCurrent)>.3) tempoCap = myCurrent * myDtHour;
 
   //SOC calculations
   if(myBmeMax>=4.2 && myCurrent<=4.5 && myMode==CHARGE) myCap=MAX_CAP;
@@ -664,7 +685,8 @@ void bmuShield::batStateCal(){
   }
   else if(myMode == CHARGE && myDod!=0){
   	myChargeCounter++;
-  	myAvgDod = (myAvgDod*(myChargeCounter-1)/(float)myChargeCounter)+ myDod/(float)myChargeCounter;
+    if(myChargeCounter!=0) myAvgDod = (myAvgDod*(myChargeCounter-1)/(float)myChargeCounter)+ myDod/(float)myChargeCounter;
+    else myAvgDod = 0;
   	myDod=0;
   }
   

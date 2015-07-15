@@ -118,17 +118,19 @@ static const uint16_t lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,41
 
 
 //BMU ADC conversion constants
-  #define CUR_CONST 0.08587        //80/V*3.3V/4095*4.01ohm/3.01ohm  sensor resolution*adc resolution*voltage divider
-  #define STRING_VOL_CONST 0.01244        //(45.3+1.87)/1.87*10Kohm/(6.34Kohm+10Kohm)*3.3V/4095
+  #define CUR_CONST 0.08462 //0.08587        //80/V*3.3V/4095*4.01ohm/3.01ohm  sensor resolution*adc resolution*voltage divider // from data 98.54%
+  #define STRING_VOL_CONST 0.01244        //(45.3+1.87)/1.87*10Kohm/(6.34Kohm+10Kohm)*3.3V/4095 
   #define PRESSURE_CONST 0.0019073     //1 kpa/5V/0.018*4.7ohm/3.2ohm*3.3V/4095*0.14503 gpsi/kpa
   #define EXT_PRESSURE_CONST 0.0047218  //15 PSI/16mA/160 ohm*3.3V/4095 d
   #define PRESSURE_OFFSET 0.3223       //0.04/0.018 kpa * 0.14503 gpsi/kpa 
   #define EXT_PRESSURE_OFFSET 3.75      //4mA*160 ohm/3.3V*4096 d*presConstExt psi/d
-  #define ALPHA_CUR 0.0012566        // low pass with a cutoff filter at 0.001 Hz rise time of ~160s
-  #define CAP_CONST 0.0000555556    //0.2 sec==>.000055556 hours
+  #define ALPHA_CUR 0.00375575       // low pass with a cutoff filter at 0.001 Hz rise time of ~60s
+
 // BMU time  
   #define RELAY_ON_DELAY 1500   // in milliseconds
-  #define TWOMINUTES 120000  // in milliseconds
+  #define CHG_DONE_TIME 60000  // in milliseconds
+  #define BAL_DONE_TIME 20000  // in milliseconds
+  #define BMU_MISMATCH_TIME 500 // in milliseconds
 
 // BMU states
   enum Mode {SYS_OFF, SYS_ON, CHARGE, BALANCE};
@@ -155,8 +157,8 @@ static const uint16_t lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,41
   	void set_bme_min(float minVol);
   	void set_bme_max(float maxVol);
   	void set_flags();
-	void reset_flags();
-	void set_flag_over(uint16_t priority2Flag);
+	  void reset_flags();
+	  void set_flag_over(uint16_t priority2Flag);
   	uint8_t set_extDO(uint8_t do_num, bool ext_do_on);
 
   	void data_bmu(uint8_t data_out[22]);
@@ -188,8 +190,8 @@ static const uint16_t lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,41
 	//Digital input pins
 	const uint16_t relay1fbPin = 25;   // negative side relay or relay 1 pin feedback
 	const uint16_t relay2fbPin = 27;   // positive side relay or realy 2 pin feedback
-	const uint16_t frontWPin = 22;  //front water leak sensor
-	const uint16_t backWPin = 23;    // back water leak sensor
+	const uint16_t frontWPin = 23;  //front water leak sensor
+	const uint16_t backWPin = 22;    // back water leak sensor
 	//Digital output pins
 	const uint16_t relay1Pin = 29;   // negative side relay or relay 1 pin
 	const uint16_t relay2Pin = 28;   // positive side relay or realy 2 pin
@@ -212,8 +214,10 @@ static const uint16_t lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,41
     float myBalRecVol;      // voltage difference at which balancing will be recommended
     float myVolTolerance;   // the max voltage difference that the virtual cells will have at the end of balancing
     float myDoneCur;         //the current at which the charging is called done
-    float myChg2Vol=0;
-    Metro myChargeDoneTimer = Metro(TWOMINUTES); // 2 minutes timer for charge done flag
+    float myChg2Vol;
+    Metro myChargeDoneTimer = Metro(CHG_DONE_TIME); // 1 minutes timer for charge done flag
+    Metro myBalDoneTimer = Metro(BAL_DONE_TIME); // 20 sec timer for balance done flag
+    Metro myBmuMismatchTimer = Metro(BMU_MISMATCH_TIME); // 20 sec timer for balance done flag
   
     // BMU states
     Mode myMode;
@@ -258,6 +262,7 @@ static const uint16_t lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,41
   // varables used in getting BMU measurements 
 	float myDT;
   float myDtInv;
+  float myDtHour;
 	//Biquad filter struct
 	  typedef struct{
 	    float gain;//filter gain
