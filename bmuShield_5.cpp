@@ -77,7 +77,7 @@ bmuShield::bmuShield()
     myInOutCurLimit = 1.0;     // current in or out limit during OFF or BALANCE mode
     myVolBmuMismatch = 3.0;       //voltage mismatch limit between calculated and measured total voltage by BMU
     myTimeOutLimit = 8.0;	// the hours in charge or balance before timing out
-    myVolLowBalAlarm  = 3.7;   // the myVoltage at which the system will not go in to balancing mode
+    myVolLowBalAlarm  = 3.7;   // the voltage at which the system will not go in to balancing mode
     myBalRecLimit = 3.9;      // minimum voltage limit for recommending balancing
     myBalRecVol = 0.050;       // voltage difference at which balancing will be recommended
     myVolTolerance = 0.003;   // the max voltage difference that the virtual cells will have at the end of balancing
@@ -110,7 +110,7 @@ void bmuShield::set_limits(float limits[14])
     myVolBmuMismatch = limits[7];       //voltage mismatch limit between calculated and measured total voltage by BMU
     myTimeOutLimit = limits[8];	// the hours in charge or balance before timing out
     // Serial.println(myTimeOutLimit,3);
-    myVolLowBalAlarm  = limits[9];   // the myVoltage at which the system will not go in to balancing mode
+    myVolLowBalAlarm  = limits[9];   // the voltage at which the system will not go in to balancing mode
     myBalRecLimit = limits[10];      // minimum voltage limit for recommending balancing
     myBalRecVol = limits[11];       // voltage difference at which balancing will be recommended
     myVolTolerance = limits[12];   // the max voltage difference that the virtual cells will have at the end of balancing
@@ -122,7 +122,7 @@ void bmuShield::set_limits(float limits[14])
  ******************************************************************************************************************/
  void bmuShield::meas_bmuShield(void){
   // measure
-  myVoltage=avgADC(tVolInPin,3)*STRING_VOL_CONST;          // read voltage value
+  // myVoltage=avgADC(tVolInPin,3)*STRING_VOL_CONST;          // read voltage value
   myFwLeak=!digitalRead(frontWPin);             // read front leak sensor
   myBwLeak=!digitalRead(backWPin);              //read back leak sensor
   myPresOld = myPressure;             // last pressure value
@@ -187,9 +187,9 @@ void bmuShield::set_flags(){ //Serial.println(myCurrent);
 	if(max(myPresRate,myPresExtRate) > myPresRateHigh) myFlag |= (1<<4); // set pressure rate flag
 	if(max(myPressure,myPressureExt) > myPresHighLimit || min(myPressure,myPressureExt) < myPresLowLimit) myFlag |= (1<<5); // set pressure out of bound flag
 	// set overall voltage mismatch
-  if(abs(myBmeSum - myVoltage) > myVolBmuMismatch){
-    if(myBmuMismatchTimer.check()) myFlag |= (1<<6); 
-  }
+  // if(abs(myBmeSum - myVoltage) > myVolBmuMismatch){
+  //   if(myBmuMismatchTimer.check()) myFlag |= (1<<6); 
+  // }
   else myBmuMismatchTimer.reset();
   
 	if(myMode == SYS_ON && myCurrent > myInCurLimit) myFlag |= (1<<7); // set On current out of bound
@@ -318,7 +318,7 @@ void bmuShield::data_bmu(uint8_t data_out[22]){
 	int2byte.asInt=myFlagOverride;
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
 	idx += 2;	
-	int2byte.asInt=float2int(myVoltage);
+	int2byte.asInt=float2int(myBmeSum);//myVoltage
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
 	idx += 2;
   // float curTempo=myCurrent;
