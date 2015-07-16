@@ -109,7 +109,6 @@ void bmuShield::set_limits(float limits[14])
     myInOutCurLimit = limits[6];     // current in or out limit during OFF or BALANCE mode
     myVolBmuMismatch = limits[7];       //voltage mismatch limit between calculated and measured total voltage by BMU
     myTimeOutLimit = limits[8];	// the hours in charge or balance before timing out
-    // Serial.println(myTimeOutLimit,3);
     myVolLowBalAlarm  = limits[9];   // the voltage at which the system will not go in to balancing mode
     myBalRecLimit = limits[10];      // minimum voltage limit for recommending balancing
     myBalRecVol = limits[11];       // voltage difference at which balancing will be recommended
@@ -140,9 +139,6 @@ void bmuShield::set_limits(float limits[14])
   if(!myRelay1fb || !myRelay2fb) myCur0 = (1.0-ALPHA_CUR)*myCur0 + ALPHA_CUR *myCurrent;
   myCurrent = myCurrent - myCur0;
 
-  // Serial.print(avgADC(tVolInPin,0));
-  // Serial.print(", ");
-
   batStateCal();
 
  }
@@ -168,7 +164,7 @@ void bmuShield::set_limits(float limits[14])
 
  @return bool status, the contactor on the bmu
  ******************************************************************************************************************/
-void bmuShield::set_flags(){ //Serial.println(myCurrent);
+void bmuShield::set_flags(){ 
 
 	// update mode time
   time_update();
@@ -177,11 +173,7 @@ void bmuShield::set_flags(){ //Serial.println(myCurrent);
 	if(myBwLeak) myFlag |= (1<<1);  // water leak in the back of the string
 	// if delayed on time is off AND relays are suppose to be on AND either relay is off THEN contactor stuck open
 	if(!myRelayDelay && myRelayOn && (!myRelay1fb || !myRelay2fb)) myFlag |= (1<<2); 
-  // Serial.print(myRelayDelay);
-  // Serial.print(", ");
-  // Serial.print(myRelayOn);
-  // Serial.print(", ");
-  // Serial.println((!myRelay1fb || !myRelay2fb));
+
 	// if the relays are suppose to be off AND either relay is on THEN contactors stuck closed
 	if(!myRelayOn && (myRelay1fb || myRelay2fb)) myFlag |= (1<<3); 
 	if(max(myPresRate,myPresExtRate) > myPresRateHigh) myFlag |= (1<<4); // set pressure rate flag
