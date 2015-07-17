@@ -39,8 +39,6 @@ Copyright 2015 General Atomics (GA)
 #ifndef bmuShield_5_H
 #define bmuShield_5_H
 
-// battery characteristics
-static const float MAX_CAP=445; 
 //**************************** Voltage lookup tables ************************//
 
 static const uint16_t lookUpSOC[1046]={1000,999,998,997,996,995,994,993,992,991,991,990,989,988,987,986,985,984,983,982,981,980,979,978,977,976,975,974,973,
@@ -115,7 +113,8 @@ static const uint16_t lookUpVoltage[1046]={4186,4185,4183,4181,4179,4178,4177,41
 3396,3394,3390,3387,3382,3379,3374,3369,3365,3360,3355,3350,3345,3339,3333,3328,3322,3316,3310,3303,3297,3290,3283,3276,3269,3261,3254,
 3246,3237,3229,3220,3211,3201,3192,3182,3171,3160,3148,3136,3124,3110,3096,3081,3065,3048,3029,3009,2987,2963,2935,2899,2829};
 
-
+// battery characteristics
+static const float MAX_CAP=445; 
 
 //BMU ADC conversion constants
   #define CUR_CONST 0.08462 //0.08587        //80/V*3.3V/4095*4.01ohm/3.01ohm  sensor resolution*adc resolution*voltage divider // from data 98.54%
