@@ -53,13 +53,14 @@ bmuShield::bmuShield()
 	myFlagOverride = 0;
 
   // BMU measurement Variables
-	myVoltage =0;           // total half-string voltage read from ADC
-	myPressure =0;          // pressure sensor reading
-	myPresOld = 0;          // last pressure value
-	myPresRate =0;          // filtered pressure rate
-	myPressureExt =0;       // external pressure sensor reading
-	myPresExtOld = 0;          // last external pressure value
+	myVoltage = 0;           // total half-string voltage read from ADC
+	for(int i=1;i<5;i++) myPressure[i]= 0;          // pressure sensor reading
+  myPressCount= 0;
+	myPresRate = 0;          // filtered pressure rate
+  myMaxPressRate = 0;
+	for(int i=1;i<5;i++) myPressureExt[i] =0;       // external pressure sensor reading
 	myPresExtRate =0;       // filtered external pressure rate
+  myMaxPressExtRate = 0;
 	myCur0 =0.3;           // offset value read from the LEM sensor
 	myCurrent =0;           // value read from the LEM sensor
 	myFwLeak =0;          // front leak sensor
@@ -68,8 +69,8 @@ bmuShield::bmuShield()
 	myRelay2fb =0;   // contactor 2 feedback
 
 	// BMU FLAG LIMITS
-    myPresRateHigh = 0.06;    //High pressure rate limit
-    myPresHighLimit = 5.0;    //High pressure limit
+    myPresRateHigh = 0.15;    //High pressure rate limit
+    myPresHighLimit = 2.5;    //High pressure limit
     myPresLowLimit = 0.5;     //Low Pressure limit
     myInCurLimit = 2.0;      //current in limit during ON mode
     myHighChargeCur = 92.0;     //high current in limit in CHARGE mode
@@ -124,14 +125,16 @@ void bmuShield::set_limits(float limits[14])
   // myVoltage=avgADC(tVolInPin,3)*STRING_VOL_CONST;          // read voltage value
   myFwLeak=!digitalRead(frontWPin);             // read front leak sensor
   myBwLeak=!digitalRead(backWPin);              //read back leak sensor
-  myPresOld = myPressure;             // last pressure value
-  myPressure=avgADC(presInPin,3)*PRESSURE_CONST-PRESSURE_OFFSET;  // read pressure from on board sensor
-  myPresRate=(myPressure-myPresOld)*myDtInv;          //calculate pressure rate
-  myPresRate= biquad_filter(biPresrate,myPresRate);      // get filtered pressure rate
-  myPresExtOld = myPressureExt;                     // last pressure value
-  myPressureExt=avgADC(presInExtPin,3)*EXT_PRESSURE_CONST-EXT_PRESSURE_OFFSET;   //get external pressure
-  myPresExtRate=(myPressureExt-myPresExtOld)*myDtInv;       //calculate externalpressure rate
-  myPresExtRate= biquad_filter(biPresrateExt, myPresExtRate); // get filtered external pressure rate
+  myPressCount = (myPressCount+1)%5;
+  myPressure[myPressCount]=avgADC(presInPin,3)*PRESSURE_CONST-PRESSURE_OFFSET;  // read pressure from on board sensor
+  int lastSecPres= (myPressCount+1)%5;
+  myPresRate=(myPressure[myPressCount]-myPressure[lastSecPres]);          //calculate pressure rate
+  if(abs(myPresRate)>abs(myMaxPressRate)) myMaxPressRate = myPresRate;
+  // myPresRate= biquad_filter(biPresrate,myPresRate);      // get filtered pressure rate
+  myPressureExt[myPressCount]=avgADC(presInExtPin,3)*EXT_PRESSURE_CONST-EXT_PRESSURE_OFFSET;   //get external pressure
+  myPresExtRate=(myPressureExt[myPressCount]-myPressureExt[lastSecPres]);       //calculate externalpressure rate
+  if(abs(myPresExtRate)>abs(myMaxPressExtRate)) myMaxPressExtRate = myPresExtRate;
+  // myPresExtRate= biquad_filter(biPresrateExt, myPresExtRate); // get filtered external pressure rate
   float curOffset= avgADC(cur0InPin,3);             //read current offset from LEM sensor
   myRelay1fb=!digitalRead(relay1fbPin);     // read feedback from relay 1
   myRelay2fb=!digitalRead(relay2fbPin);    // read feedback from relay 2
@@ -176,9 +179,12 @@ void bmuShield::set_flags(){
 
 	// if the relays are suppose to be off AND either relay is on THEN contactors stuck closed
 	if(!myRelayOn && (myRelay1fb || myRelay2fb)) myFlag |= (1<<3); 
-	if(max(myPresRate,myPresExtRate) > myPresRateHigh) myFlag |= (1<<4); // set pressure rate flag
-	if(max(myPressure,myPressureExt) > myPresHighLimit || min(myPressure,myPressureExt) < myPresLowLimit) myFlag |= (1<<5); // set pressure out of bound flag
-	// set overall voltage mismatch
+	// if(max(abs(myPresRate),abs(myPresExtRate)) > myPresRateHigh) myFlag |= (1<<4); // set pressure rate flag
+	// if(max(myPressure[myPressCount],myPressureExt[myPressCount]) > myPresHighLimit || min(myPressure[myPressCount],myPressureExt[myPressCount]) < myPresLowLimit) myFlag |= (1<<5); // set pressure out of bound flag
+	if(abs(myPresRate) > myPresRateHigh) myFlag |= (1<<4); // set pressure rate flag
+  if(myPressure[myPressCount] > myPresHighLimit || myPressure[myPressCount] < myPresLowLimit) myFlag |= (1<<5); // set pressure out of bound flag
+  
+  // set overall voltage mismatch
   // if(abs(myBmeSum - myVoltage) > myVolBmuMismatch){
   //   if(myBmuMismatchTimer.check()) myFlag |= (1<<6); 
   // }
@@ -318,17 +324,19 @@ void bmuShield::data_bmu(uint8_t data_out[22]){
 	int2byte.asInt=float2int(myCurrent+150);
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
 	idx += 2;
-	int2byte.asInt=float2int(myPressure);
+	int2byte.asInt=float2int(myPressure[myPressCount]);
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
 	idx += 2;
-	int2byte.asInt=float2int(myPresRate);
+	int2byte.asInt=float2int(myMaxPressRate);
+	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
+  myMaxPressRate=0;
+	idx += 2;
+	int2byte.asInt=float2int(myPressureExt[myPressCount]);
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
 	idx += 2;
-	int2byte.asInt=float2int(myPressureExt);
+	int2byte.asInt=float2int(myMaxPressExtRate);
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
-	idx += 2;
-	int2byte.asInt=float2int(myPresExtRate);
-	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
+  myMaxPressExtRate=0;
 
 }
 
@@ -417,7 +425,7 @@ float bmuShield::get_voltage(){
  @return float pressure,  the pressure on the bmu
  ******************************************************************************************************************/
 float bmuShield::get_pressure(){ 
-  return myPressure;
+  return myPressure[myPressCount];
 }
 
 /*!******************************************************************************************************************
@@ -435,7 +443,7 @@ float bmuShield::get_presRate(){
  @return float pressure,  the external pressure attached to the bmu
  ******************************************************************************************************************/
 float bmuShield::get_ext_pressure(){ 
-  return myPressureExt;
+  return myPressureExt[myPressCount];
 }
 
 /*!******************************************************************************************************************
@@ -522,9 +530,12 @@ void bmuShield::bmuShield_initialize(){
     analogReadResolution(12); // set ADC to 12 bit resalution
    
     // set the old pressure values for the rate calculation
-    myPresOld=avgADC(presInPin,3)*PRESSURE_CONST-PRESSURE_OFFSET;  // read pressure from on board sensor
-    myPresExtOld=avgADC(presInExtPin,3)*EXT_PRESSURE_CONST-EXT_PRESSURE_OFFSET;   //get external pressure
-  
+    myPressure[0]=avgADC(presInPin,3)*PRESSURE_CONST-PRESSURE_OFFSET;  // read pressure from on board sensor
+    myPressureExt[0]=avgADC(presInExtPin,3)*EXT_PRESSURE_CONST-EXT_PRESSURE_OFFSET;   //get external pressure
+    for(int i=1;i<5;i++){
+      myPressure[i]=myPressure[0];
+      myPressureExt[i]=myPressureExt[0];
+    }
   	myDT=0.2;
     myDtInv = 1.0/myDT;
     myDtHour = myDT/3600;

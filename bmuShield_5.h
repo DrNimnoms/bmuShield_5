@@ -236,13 +236,14 @@ static const float MAX_CAP=445;
 	float myVoltage;           // total half-string voltage read from ADC
 	float myCur0;           // offset value read from the LEM sensor
 	float myCurrent;           // value read from the LEM sensor
-	float myPressure;          // pressure sensor reading
-	float myPresOld;          // last pressure value
+	float myPressure[5];          // the last 5 pressure sensor reading
+  int myPressCount;         // the location of the most recent pressure reading 
 	float myPresRate;          // filtered pressure rate
-	float myPressureExt;       // external pressure sensor reading
-	float myPresExtOld;          // last external pressure value
+  float myMaxPressRate;
+	float myPressureExt[5];    // the last 5 external pressure sensor reading
 	float myPresExtRate;       // filtered external pressure rate
-	
+	float myMaxPressExtRate;
+
 	bool myRelay1fb;   // contactor 1 feedback
 	bool myRelay2fb;   // contactor 2 feedback
 
