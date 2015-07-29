@@ -138,7 +138,7 @@ void bmuShield::set_limits(float limits[14])
   float curOffset= avgADC(cur0InPin,3);             //read current offset from LEM sensor
   myRelay1fb=!digitalRead(relay1fbPin);     // read feedback from relay 1
   myRelay2fb=!digitalRead(relay2fbPin);    // read feedback from relay 2
-  myCurrent=-(avgADC(curInPin,3)-curOffset)*CUR_CONST;     //read current sensor
+  myCurrent=(avgADC(curInPin,3)-curOffset)*CUR_CONST;     //read current sensor
   if(!myRelay1fb || !myRelay2fb) myCur0 = (1.0-ALPHA_CUR)*myCur0 + ALPHA_CUR *myCurrent;
   myCurrent = myCurrent - myCur0;
 
