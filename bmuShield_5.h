@@ -119,9 +119,9 @@ static const float MAX_CAP=445;
 //BMU ADC conversion constants
   #define CUR_CONST 0.08462 //0.08587        //80/V*3.3V/4095*4.01ohm/3.01ohm  sensor resolution*adc resolution*voltage divider // from data 98.54%
   #define STRING_VOL_CONST 0.01244        //(45.3+1.87)/1.87*10Kohm/(6.34Kohm+10Kohm)*3.3V/4095 
-  #define PRESSURE_CONST 0.0019073     //1 kpa/5V/0.018*4.7ohm/3.2ohm*3.3V/4095*0.14503 gpsi/kpa
+  #define PRESSURE_CONST 0.004387    ///1 kpa/5V/0.007826*4.7ohm/3.2ohm*3.3V/4095*0.14503 gpsi/kpa  ==> 0.00438711564
   #define EXT_PRESSURE_CONST 0.0047218  //15 PSI/16mA/160 ohm*3.3V/4095 d
-  #define PRESSURE_OFFSET 0.3223       //0.04/0.018 kpa * 0.14503 gpsi/kpa 
+  #define PRESSURE_OFFSET 13.3200473     // 0.07739 kpa ==> 0.0112244705 PSI ==>14.7035473 GPSI
   #define EXT_PRESSURE_OFFSET 3.75      //4mA*160 ohm/3.3V*4096 d*presConstExt psi/d
   #define ALPHA_CUR 0.00375575       // low pass with a cutoff filter at 0.001 Hz rise time of ~60s
 
@@ -130,6 +130,7 @@ static const float MAX_CAP=445;
   #define CHG_DONE_TIME 60000  // in milliseconds
   #define BAL_DONE_TIME 20000  // in milliseconds
   #define BMU_MISMATCH_TIME 500 // in milliseconds
+  #define BMU_LEAK_TIME 500    // in milliseconds
 
 // BMU states
   enum Mode {SYS_OFF, SYS_ON, CHARGE, BALANCE};
@@ -214,9 +215,12 @@ static const float MAX_CAP=445;
     float myVolTolerance;   // the max voltage difference that the virtual cells will have at the end of balancing
     float myDoneCur;         //the current at which the charging is called done
     float myChg2Vol;
+    bool myResetCap;
     Metro myChargeDoneTimer = Metro(CHG_DONE_TIME); // 1 minutes timer for charge done flag
     Metro myBalDoneTimer = Metro(BAL_DONE_TIME); // 20 sec timer for balance done flag
-    Metro myBmuMismatchTimer = Metro(BMU_MISMATCH_TIME); // 20 sec timer for balance done flag
+    Metro myBmuMismatchTimer = Metro(BMU_MISMATCH_TIME); // 0.5 sec timer for balance done flag
+    Metro myFLeakTimer = Metro(BMU_LEAK_TIME); // 0.3 sec timer for leak flag
+    Metro myBLeakTimer = Metro(BMU_LEAK_TIME); // 0.3 sec timer for leak flag
   
     // BMU states
     Mode myMode;

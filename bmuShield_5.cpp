@@ -84,7 +84,7 @@ bmuShield::bmuShield()
     myVolTolerance = 0.003;   // the max voltage difference that the virtual cells will have at the end of balancing
     myDoneCur = 4.45;         //the current at which the charging is called done
     myChg2Vol=0;
-
+    myResetCap = false;
   // BMU actuators Variables
 	myRelayDelay = false; // a bool to saprate the relays turning on 
 	myRelayOn =false;   // relays 1 nd 2
@@ -127,18 +127,19 @@ void bmuShield::set_limits(float limits[14])
   myBwLeak=!digitalRead(backWPin);              //read back leak sensor
   myPressCount = (myPressCount+1)%5;
   myPressure[myPressCount]=avgADC(presInPin,3)*PRESSURE_CONST-PRESSURE_OFFSET;  // read pressure from on board sensor
+  // Serial.println(myPressure[myPressCount]);
   int lastSecPres= (myPressCount+1)%5;
   myPresRate=(myPressure[myPressCount]-myPressure[lastSecPres]);          //calculate pressure rate
   if(abs(myPresRate)>abs(myMaxPressRate)) myMaxPressRate = myPresRate;
   // myPresRate= biquad_filter(biPresrate,myPresRate);      // get filtered pressure rate
-  myPressureExt[myPressCount]=avgADC(presInExtPin,3)*EXT_PRESSURE_CONST-EXT_PRESSURE_OFFSET;   //get external pressure
-  myPresExtRate=(myPressureExt[myPressCount]-myPressureExt[lastSecPres]);       //calculate externalpressure rate
-  if(abs(myPresExtRate)>abs(myMaxPressExtRate)) myMaxPressExtRate = myPresExtRate;
+  // myPressureExt[myPressCount]=avgADC(presInExtPin,3)*EXT_PRESSURE_CONST-EXT_PRESSURE_OFFSET;   //get external pressure
+  // myPresExtRate=(myPressureExt[myPressCount]-myPressureExt[lastSecPres]);       //calculate externalpressure rate
+  // if(abs(myPresExtRate)>abs(myMaxPressExtRate)) myMaxPressExtRate = myPresExtRate;
   // myPresExtRate= biquad_filter(biPresrateExt, myPresExtRate); // get filtered external pressure rate
   float curOffset= avgADC(cur0InPin,3);             //read current offset from LEM sensor
   myRelay1fb=!digitalRead(relay1fbPin);     // read feedback from relay 1
   myRelay2fb=!digitalRead(relay2fbPin);    // read feedback from relay 2
-  myCurrent=(avgADC(curInPin,3)-curOffset)*CUR_CONST;     //read current sensor
+  myCurrent=-(avgADC(curInPin,3)-curOffset)*CUR_CONST;     //read current sensor
   if(!myRelay1fb || !myRelay2fb) myCur0 = (1.0-ALPHA_CUR)*myCur0 + ALPHA_CUR *myCurrent;
   myCurrent = myCurrent - myCur0;
 
@@ -172,8 +173,14 @@ void bmuShield::set_flags(){
 	// update mode time
   time_update();
 
-	if(myFwLeak) myFlag |= 1;  // water leak in the front of the string
-	if(myBwLeak) myFlag |= (1<<1);  // water leak in the back of the string
+	if(myFwLeak){
+    if(myFLeakTimer.check()) myFlag |= 1;  // water leak in the front of the string
+  }
+  else myFLeakTimer.reset();
+	if(myBwLeak){
+    if(myBLeakTimer.check())myFlag |= (1<<1);  // water leak in the back of the string
+  }
+  else myBLeakTimer.reset();
 	// if delayed on time is off AND relays are suppose to be on AND either relay is off THEN contactor stuck open
 	if(!myRelayDelay && myRelayOn && (!myRelay1fb || !myRelay2fb)) myFlag |= (1<<2); 
 
@@ -204,7 +211,10 @@ void bmuShield::set_flags(){
  	
  	// set charging Done flag if myCurrent is lower than myDoneCur for two minutes
  	if(myMode==CHARGE && myCurrent < myDoneCur && myBmeMax >= myChg2Vol-0.002){
-    if(myChargeDoneTimer.check()) myFlag |= (1<<14); 
+    if(myChargeDoneTimer.check()){
+      myFlag |= (1<<14);
+      if(myBmeMax >= 4.2-0.002) myResetCap = true;
+    }  
   }
  	else myChargeDoneTimer.reset(); // reset charge time
 }
@@ -324,14 +334,14 @@ void bmuShield::data_bmu(uint8_t data_out[22]){
 	int2byte.asInt=float2int(myCurrent+150);
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
 	idx += 2;
-	int2byte.asInt=float2int(myPressure[myPressCount]);
+	int2byte.asInt=float2int(myPressure[myPressCount]+14.7);
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
 	idx += 2;
 	int2byte.asInt=float2int(myMaxPressRate);
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
   myMaxPressRate=0;
 	idx += 2;
-	int2byte.asInt=float2int(myPressureExt[myPressCount]);
+	int2byte.asInt=float2int(myPressureExt[myPressCount]+14.7);
 	for(int k=0;k<2;k++) data_out[k+idx]=int2byte.asBytes[k];
 	idx += 2;
 	int2byte.asInt=float2int(myMaxPressExtRate);
@@ -531,10 +541,10 @@ void bmuShield::bmuShield_initialize(){
    
     // set the old pressure values for the rate calculation
     myPressure[0]=avgADC(presInPin,3)*PRESSURE_CONST-PRESSURE_OFFSET;  // read pressure from on board sensor
-    myPressureExt[0]=avgADC(presInExtPin,3)*EXT_PRESSURE_CONST-EXT_PRESSURE_OFFSET;   //get external pressure
+    // myPressureExt[0]=avgADC(presInExtPin,3)*EXT_PRESSURE_CONST-EXT_PRESSURE_OFFSET;   //get external pressure
     for(int i=1;i<5;i++){
       myPressure[i]=myPressure[0];
-      myPressureExt[i]=myPressureExt[0];
+      // myPressureExt[i]=myPressureExt[0];
     }
   	myDT=0.2;
     myDtInv = 1.0/myDT;
@@ -669,7 +679,10 @@ void bmuShield::batStateCal(){
   if(abs(myCurrent)>.3) tempoCap = myCurrent * myDtHour;
 
   //SOC calculations
-  if(myBmeMax>=4.2 && myCurrent<=4.5 && myMode==CHARGE) myCap=MAX_CAP;
+  if(myResetCap){
+    myCap=MAX_CAP;
+    myResetCap=false;
+  } 
   else myCap+=tempoCap;
   if(myCap>MAX_CAP) myCap=MAX_CAP;
   if(myCap<0) myCap=0; 
